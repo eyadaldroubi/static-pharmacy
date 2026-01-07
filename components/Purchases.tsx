@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
 import { Purchase, PurchaseItem, Medicine, Supplier } from '../types';
 import Modal from './Modal';
-import { PlusIcon, DeleteIcon } from './icons/Icons';
+import { PlusIcon, DeleteIcon, PrinterIcon } from './icons/Icons';
 
 interface PurchasesProps {
   purchases: Purchase[];
@@ -10,6 +11,97 @@ interface PurchasesProps {
   setMedicines: React.Dispatch<React.SetStateAction<Medicine[]>>;
   suppliers: Supplier[];
 }
+
+const PurchaseInvoiceView: React.FC<{ purchase: Purchase, medicines: Medicine[], suppliers: Supplier[], onPrint: () => void }> = ({ purchase, medicines, suppliers, onPrint }) => {
+    const supplier = suppliers.find(s => s.id === purchase.supplierId);
+    
+    return (
+        <div className="p-8 bg-white text-slate-900 rounded-lg">
+            <div id="printable-invoice" className="space-y-6">
+                <div className="flex justify-between items-start border-b-2 border-slate-200 pb-6">
+                    <div>
+                        <h1 className="text-3xl font-bold text-teal-700">الصيدلية السورية</h1>
+                        <p className="text-slate-500">نظام إدارة الصيدلية المتكامل</p>
+                    </div>
+                    <div className="text-left">
+                        <h2 className="text-xl font-bold">فاتورة مشتريات</h2>
+                        <p className="text-sm">رقم الفاتورة: <span className="font-mono">{purchase.id}</span></p>
+                        <p className="text-sm">التاريخ: {new Date(purchase.date).toLocaleString('ar-SA')}</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="p-4 bg-slate-50 rounded-lg">
+                        <h3 className="font-bold mb-2 border-b border-slate-200 pb-1">معلومات المورد:</h3>
+                        <p><span className="font-semibold">الاسم:</span> {supplier?.name || 'مورد غير معروف'}</p>
+                        <p><span className="font-semibold">الهاتف:</span> {supplier?.phone || '-'}</p>
+                        <p><span className="font-semibold">العنوان:</span> {supplier?.address || '-'}</p>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-lg text-left">
+                        <h3 className="font-bold mb-2 border-b border-slate-200 pb-1">تفاصيل الصيدلية:</h3>
+                        <p>صيدلية المجتمع</p>
+                        <p>دمشق، سوريا</p>
+                        <p>هاتف: 011-1234567</p>
+                    </div>
+                </div>
+
+                <table className="w-full text-right border-collapse">
+                    <thead>
+                        <tr className="bg-slate-100 text-slate-700">
+                            <th className="p-3 border">الدواء</th>
+                            <th className="p-3 border text-center">الكمية</th>
+                            <th className="p-3 border text-center">السعر الإفرادي</th>
+                            <th className="p-3 border text-center">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {purchase.items.map((item, idx) => {
+                            const medicine = medicines.find(m => m.id === item.medicineId);
+                            return (
+                                <tr key={idx} className="border-b">
+                                    <td className="p-3 border">{medicine?.name || 'غير معروف'}</td>
+                                    <td className="p-3 border text-center">{item.quantity}</td>
+                                    <td className="p-3 border text-center font-mono">{item.costPrice.toLocaleString()} ل.س</td>
+                                    <td className="p-3 border text-center font-bold font-mono">{(item.quantity * item.costPrice).toLocaleString()} ل.س</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                    <tfoot>
+                        <tr className="bg-slate-50 font-bold">
+                            <td colSpan={3} className="p-3 border text-left">إجمالي الفاتورة:</td>
+                            <td className="p-3 border text-center text-teal-700 text-lg font-mono">{purchase.totalCost.toLocaleString()} ل.س</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div className="pt-10 flex justify-between items-center text-xs text-slate-400">
+                    <p>تم استخراج هذه الفاتورة آلياً بواسطة نظام الصيدلية.</p>
+                    <p>توقيع المستلم: ...............................</p>
+                </div>
+            </div>
+
+            <div className="mt-8 flex justify-end space-x-3 space-x-reverse no-print">
+                <button 
+                    onClick={onPrint}
+                    className="flex items-center px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-lg transition-all"
+                >
+                    <PrinterIcon className="w-5 h-5 me-2" />
+                    طباعة الآن
+                </button>
+            </div>
+            
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body * { visibility: hidden; }
+                    #printable-invoice, #printable-invoice * { visibility: visible; }
+                    #printable-invoice { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none !important; }
+                }
+            `}} />
+        </div>
+    );
+};
 
 const PurchaseForm: React.FC<{
   onSave: (purchase: Omit<Purchase, 'id'>) => void;
@@ -21,7 +113,6 @@ const PurchaseForm: React.FC<{
   const [items, setItems] = useState<PurchaseItem[]>([]);
   
   const formInputStyle = "p-2 border border-slate-300 rounded-md w-full bg-slate-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 focus:ring-teal-500 focus:border-teal-500 focus:ring-1";
-
 
   const addPurchaseItem = () => {
     setItems([...items, { medicineId: '', quantity: 1, costPrice: 0 }]);
@@ -85,7 +176,7 @@ const PurchaseForm: React.FC<{
         </div>
         
         <div className="text-xl font-bold pt-4 border-t border-slate-200 dark:border-gray-600 text-slate-800 dark:text-gray-200">
-            الإجمالي: {totalCost.toFixed(2)} س.ل
+            الإجمالي: {totalCost.toLocaleString()} ل.س
         </div>
 
         <div className="flex justify-end space-x-3 space-x-reverse pt-4">
@@ -97,7 +188,8 @@ const PurchaseForm: React.FC<{
 };
 
 const Purchases: React.FC<PurchasesProps> = ({ purchases, setPurchases, medicines, setMedicines, suppliers }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [printingPurchase, setPrintingPurchase] = useState<Purchase | null>(null);
 
     const handleSave = (purchase: Omit<Purchase, 'id'>) => {
         const newPurchase: Purchase = {
@@ -113,14 +205,18 @@ const Purchases: React.FC<PurchasesProps> = ({ purchases, setPurchases, medicine
             );
         });
         setMedicines(updatedMedicines);
-        setIsModalOpen(false);
+        setIsFormOpen(false);
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-bold text-slate-700 dark:text-gray-200">إدارة المشتريات</h2>
-                <button onClick={() => setIsModalOpen(true)} className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 transition-colors">
+                <button onClick={() => setIsFormOpen(true)} className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-lg shadow hover:bg-teal-700 transition-colors">
                     <PlusIcon className="w-5 h-5 me-2" />
                     إضافة فاتورة مشتريات
                 </button>
@@ -134,6 +230,7 @@ const Purchases: React.FC<PurchasesProps> = ({ purchases, setPurchases, medicine
                             <th className="p-3 text-sm font-semibold tracking-wide text-slate-600 dark:text-gray-300">المورد</th>
                             <th className="p-3 text-sm font-semibold tracking-wide text-slate-600 dark:text-gray-300">التاريخ</th>
                             <th className="p-3 text-sm font-semibold tracking-wide text-slate-600 dark:text-gray-300">الإجمالي</th>
+                            <th className="p-3 text-sm font-semibold tracking-wide text-slate-600 dark:text-gray-300 text-center">إجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -144,17 +241,44 @@ const Purchases: React.FC<PurchasesProps> = ({ purchases, setPurchases, medicine
                                     <td className="p-3 text-sm font-medium text-slate-800 dark:text-gray-200">{p.id}</td>
                                     <td className="p-3 text-sm text-slate-700 dark:text-gray-300">{supplier?.name || 'غير معروف'}</td>
                                     <td className="p-3 text-sm text-slate-700 dark:text-gray-300">{new Date(p.date).toLocaleDateString('ar-SA')}</td>
-                                    <td className="p-3 text-sm text-green-600 dark:text-green-400 font-bold">{p.totalCost.toFixed(2)} ل.س</td>
+                                    <td className="p-3 text-sm text-green-600 dark:text-green-400 font-bold">{p.totalCost.toLocaleString()} ل.س</td>
+                                    <td className="p-3 text-center">
+                                        <button 
+                                            onClick={() => setPrintingPurchase(p)}
+                                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
+                                            title="طباعة الفاتورة"
+                                        >
+                                            <PrinterIcon className="w-5 h-5" />
+                                        </button>
+                                    </td>
                                 </tr>
                             )
                         })}
+                        {purchases.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="p-10 text-center text-slate-500">لا توجد فواتير مشتريات حالياً</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-                <PurchaseForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} medicines={medicines} suppliers={suppliers} />
+            {/* Modal for adding new purchase */}
+            <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)}>
+                <PurchaseForm onSave={handleSave} onCancel={() => setIsFormOpen(false)} medicines={medicines} suppliers={suppliers} />
             </Modal>
+
+            {/* Modal for Invoice Printing Preview */}
+            {printingPurchase && (
+                <Modal isOpen={true} onClose={() => setPrintingPurchase(null)}>
+                    <PurchaseInvoiceView 
+                        purchase={printingPurchase} 
+                        medicines={medicines} 
+                        suppliers={suppliers} 
+                        onPrint={handlePrint}
+                    />
+                </Modal>
+            )}
         </div>
     );
 };
