@@ -8,14 +8,14 @@ interface CustomersProps {
   setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
 }
 
-const CustomerForm: React.FC<{ customer?: Customer; onSave: (customer: Omit<Customer, 'id'> | Customer) => void; onCancel: () => void }> = ({ customer, onSave, onCancel }) => {
+const CustomerForm: React.FC<{ customer?: Customer; onSave: (customer: Customer) => void; onCancel: () => void }> = ({ customer, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     name: customer?.name || '',
     phone: customer?.phone || '',
     address: customer?.address || '',
   });
 
-  const formInputStyle = "p-2 border border-slate-300 rounded-md w-full bg-slate-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 focus:ring-teal-500 focus:border-teal-500 focus:ring-1";
+  const formInputStyle = "p-2 border border-slate-300 rounded-md w-full bg-slate-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 focus:ring-teal-500 focus:border-teal-500 focus:ring-1 text-right";
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,19 +24,29 @@ const CustomerForm: React.FC<{ customer?: Customer; onSave: (customer: Omit<Cust
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customer) {
-      onSave({ ...customer, ...formData });
-    } else {
-      onSave({ ...formData, id: new Date().toISOString() });
-    }
+    onSave({ 
+      ...formData, 
+      id: customer?.id || `cust_${Date.now()}` 
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="text-xl font-bold text-slate-700 dark:text-gray-200">{customer ? 'تعديل بيانات العميل' : 'إضافة عميل جديد'}</h3>
-      <input name="name" value={formData.name} onChange={handleChange} placeholder="الاسم" className={formInputStyle} required />
-      <input name="phone" value={formData.phone} onChange={handleChange} placeholder="رقم الهاتف" className={formInputStyle} />
-      <input name="address" value={formData.address} onChange={handleChange} placeholder="العنوان" className={formInputStyle} />
+      <div className="space-y-3 text-right">
+        <div>
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">اسم العميل</label>
+          <input name="name" value={formData.name} onChange={handleChange} placeholder="الاسم الكامل" className={formInputStyle} required />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">رقم الهاتف</label>
+          <input name="phone" value={formData.phone} onChange={handleChange} placeholder="09xxxxxxx" className={formInputStyle} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">العنوان</label>
+          <input name="address" value={formData.address} onChange={handleChange} placeholder="العنوان بالتفصيل" className={formInputStyle} />
+        </div>
+      </div>
       <div className="flex justify-end space-x-3 space-x-reverse pt-4">
         <button type="button" onClick={onCancel} className="px-4 py-2 bg-slate-200 text-slate-800 rounded-md hover:bg-slate-300 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500 transition-colors">إلغاء</button>
         <button type="submit" className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors">حفظ</button>
@@ -49,12 +59,15 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | undefined>(undefined);
 
-  const handleSave = (customer: Omit<Customer, 'id'> | Customer) => {
-    if ('id' in customer) {
-      setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
-    } else {
-      setCustomers(prev => [...prev, { ...customer, id: new Date().toISOString() }]);
-    }
+  const handleSave = (customer: Customer) => {
+    setCustomers(prev => {
+      const exists = prev.some(c => c.id === customer.id);
+      if (exists) {
+        return prev.map(c => c.id === customer.id ? customer : c);
+      } else {
+        return [...prev, customer];
+      }
+    });
     closeModal();
   };
 
@@ -111,6 +124,11 @@ const Customers: React.FC<CustomersProps> = ({ customers, setCustomers }) => {
                 </td>
               </tr>
             ))}
+            {customers.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-8 text-center text-slate-500">لا يوجد عملاء مسجلون حالياً</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
