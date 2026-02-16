@@ -8,7 +8,7 @@ interface MedicinesProps {
   setMedicines: React.Dispatch<React.SetStateAction<Medicine[]>>;
 }
 
-const MedicineForm: React.FC<{ medicine?: Medicine; onSave: (medicine: Omit<Medicine, 'id'> | Medicine) => void; onCancel: () => void }> = ({ medicine, onSave, onCancel }) => {
+const MedicineForm: React.FC<{ medicine?: Medicine; onSave: (medicine: Medicine) => void; onCancel: () => void }> = ({ medicine, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     name: medicine?.name || '',
     scientificName: medicine?.scientificName || '',
@@ -19,7 +19,7 @@ const MedicineForm: React.FC<{ medicine?: Medicine; onSave: (medicine: Omit<Medi
     price: medicine?.price || 0,
   });
   
-  const formInputStyle = "p-2 border border-slate-300 rounded-md w-full bg-slate-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 focus:ring-teal-500 focus:border-teal-500 focus:ring-1";
+  const formInputStyle = "p-2 border border-slate-300 rounded-md w-full bg-slate-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 focus:ring-teal-500 focus:border-teal-500 focus:ring-1 text-right";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -28,24 +28,42 @@ const MedicineForm: React.FC<{ medicine?: Medicine; onSave: (medicine: Omit<Medi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (medicine) {
-      onSave({ ...medicine, ...formData });
-    } else {
-      onSave({ ...formData, id: new Date().toISOString() });
-    }
+    // نمرر الـ id إذا كان موجوداً (تعديل) أو ننشئ واحداً جديداً (إضافة)
+    onSave({ 
+      ...formData, 
+      id: medicine?.id || `med_${Date.now()}` 
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="text-xl font-bold text-slate-700 dark:text-gray-200">{medicine ? 'تعديل الدواء' : 'إضافة دواء جديد'}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <input name="name" value={formData.name} onChange={handleChange} placeholder="الاسم التجاري" className={formInputStyle} required />
-        <input name="scientificName" value={formData.scientificName} onChange={handleChange} placeholder="الاسم العلمي" className={formInputStyle} required />
-        <input name="manufacturer" value={formData.manufacturer} onChange={handleChange} placeholder="الشركة المصنعة" className={formInputStyle} />
-        <input name="category" value={formData.category} onChange={handleChange} placeholder="الفئة" className={formInputStyle} />
-        <input name="quantity" type="number" value={formData.quantity} onChange={handleChange} placeholder="الكمية" className={formInputStyle} required min="0" />
-        <input name="price" type="number" value={formData.price} onChange={handleChange} placeholder="السعر" className={formInputStyle} required min="0" step="0.01" />
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-right">
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">الاسم التجاري</label>
+          <input name="name" value={formData.name} onChange={handleChange} placeholder="مثلاً: بنادول" className={formInputStyle} required />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">الاسم العلمي</label>
+          <input name="scientificName" value={formData.scientificName} onChange={handleChange} placeholder="مثلاً: Paracetamol" className={formInputStyle} required />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">الشركة المصنعة</label>
+          <input name="manufacturer" value={formData.manufacturer} onChange={handleChange} placeholder="الشركة" className={formInputStyle} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">الفئة</label>
+          <input name="category" value={formData.category} onChange={handleChange} placeholder="الفئة الدوائية" className={formInputStyle} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">الكمية</label>
+          <input name="quantity" type="number" value={formData.quantity} onChange={handleChange} placeholder="0" className={formInputStyle} required min="0" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-slate-600 dark:text-gray-400">السعر</label>
+          <input name="price" type="number" value={formData.price} onChange={handleChange} placeholder="0.00" className={formInputStyle} required min="0" step="0.01" />
+        </div>
+        <div className="md:col-span-2 space-y-1">
             <label className="block text-sm font-medium text-slate-700 dark:text-gray-300">تاريخ انتهاء الصلاحية</label>
             <input name="expiryDate" type="date" value={formData.expiryDate} onChange={handleChange} className={formInputStyle} required />
         </div>
@@ -64,12 +82,17 @@ const Medicines: React.FC<MedicinesProps> = ({ medicines, setMedicines }) => {
   const [editingMedicine, setEditingMedicine] = useState<Medicine | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleSave = (medicine: Omit<Medicine, 'id'> | Medicine) => {
-    if ('id' in medicine) {
-      setMedicines(prev => prev.map(m => m.id === medicine.id ? medicine : m));
-    } else {
-      setMedicines(prev => [...prev, { ...medicine, id: new Date().toISOString() }]);
-    }
+  const handleSave = (medicine: Medicine) => {
+    setMedicines(prev => {
+      const exists = prev.some(m => m.id === medicine.id);
+      if (exists) {
+        // تحديث دواء موجود
+        return prev.map(m => m.id === medicine.id ? medicine : m);
+      } else {
+        // إضافة دواء جديد بالكامل
+        return [...prev, medicine];
+      }
+    });
     closeModal();
   };
 
@@ -129,7 +152,7 @@ const Medicines: React.FC<MedicinesProps> = ({ medicines, setMedicines }) => {
           placeholder="ابحث عن دواء بالاسم التجاري أو العلمي..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white dark:bg-gray-800 dark:border-gray-600"
+          className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 bg-white dark:bg-gray-800 dark:border-gray-600 text-right"
         />
         <SearchIcon className="w-5 h-5 absolute top-1/2 right-3 -translate-y-1/2 text-slate-400" />
       </div>
@@ -163,6 +186,11 @@ const Medicines: React.FC<MedicinesProps> = ({ medicines, setMedicines }) => {
                 </tr>
               );
             })}
+            {filteredMedicines.length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-8 text-center text-slate-500">لا توجد نتائج مطابقة</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
